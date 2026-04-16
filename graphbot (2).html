@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GraphBot — Multi-Model AI</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary:#0d1117; --bg-secondary:#161b22; --bg-panel:#1c2128;
+    --bg-hover:#21262d; --bg-input:#0d1117; --border:#30363d;
+    --accent:#2f81f7; --accent-dim:#1f4f9e22; --accent-glow:#2f81f740;
+    --text-primary:#e6edf3; --text-secondary:#8b949e; --text-muted:#484f58;
+    --success:#3fb950; --error:#f85149;
+    --bot-bubble:#1c2128; --user-bubble:#1a3a5c;
+    --font-mono:'IBM Plex Mono',monospace; --font-sans:'IBM Plex Sans',sans-serif;
+    --radius:8px; --radius-lg:14px; --sidebar-width:260px; --header-height:56px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font-sans);background:var(--bg-primary);color:var(--text-primary);height:100dvh;display:flex;overflow:hidden;font-size:14px;line-height:1.6}
+
+  /* SIDEBAR */
+  .sidebar{width:var(--sidebar-width);background:var(--bg-secondary);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:transform .25s ease;z-index:100}
+  .sidebar-header{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+  .logo-mark{width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .logo-mark svg{width:18px;height:18px;fill:white}
+  .logo-text{font-family:var(--font-mono);font-size:15px;font-weight:600;letter-spacing:-.3px}
+  .logo-text span{color:var(--accent)}
+  .new-chat-btn{margin:12px;padding:9px 14px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text-secondary);font-family:var(--font-sans);font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all .15s;width:calc(100% - 24px)}
+  .new-chat-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+  .new-chat-btn svg{width:14px;height:14px}
+  .sidebar-section-label{padding:10px 16px 6px;font-size:11px;font-family:var(--font-mono);color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase}
+  .chat-list{flex:1;overflow-y:auto;padding:0 8px}
+  .chat-item{padding:8px 10px;border-radius:var(--radius);cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text-secondary);font-size:13px;transition:all .12s;margin-bottom:2px;white-space:nowrap;overflow:hidden;border:1px solid transparent}
+  .chat-item:hover{background:var(--bg-hover);color:var(--text-primary)}
+  .chat-item.active{background:var(--accent-dim);color:var(--accent);border-color:var(--accent-glow)}
+  .chat-item svg{width:13px;height:13px;flex-shrink:0;opacity:.6}
+  .chat-item span{overflow:hidden;text-overflow:ellipsis}
+  .sidebar-footer{border-top:1px solid var(--border);padding:12px}
+  .user-card{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius);cursor:pointer;transition:background .12s}
+  .user-card:hover{background:var(--bg-hover)}
+  .avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#2f81f7,#1a56b0);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:white;flex-shrink:0;font-family:var(--font-mono)}
+  .user-name{font-size:13px;font-weight:500}
+  .user-role{font-size:11px;color:var(--text-muted)}
+
+  /* MAIN */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0}
+
+  /* HEADER */
+  .header{height:var(--header-height);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:10px;background:var(--bg-secondary);flex-shrink:0}
+  .menu-btn{display:none;background:none;border:none;color:var(--text-secondary);cursor:pointer;padding:6px;border-radius:6px}
+  .menu-btn:hover{background:var(--bg-hover)}
+  .menu-btn svg{width:18px;height:18px;display:block}
+  .header-title{font-family:var(--font-mono);font-size:13px;color:var(--text-secondary)}
+  .header-title strong{color:var(--text-primary)}
+  .header-spacer{flex:1}
+
+  /* PROVIDER SELECTOR */
+  .provider-selector{display:flex;align-items:center;gap:6px;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;padding:4px 6px;cursor:pointer;transition:border-color .15s;position:relative}
+  .provider-selector:hover{border-color:var(--accent)}
+  .provider-icon{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+  .provider-name{font-family:var(--font-mono);font-size:11px;color:var(--text-primary);white-space:nowrap}
+  .provider-chevron{color:var(--text-muted)}
+  .provider-chevron svg{width:12px;height:12px}
+
+  /* PROVIDER DROPDOWN */
+  .provider-dropdown{position:absolute;top:calc(100% + 6px);right:0;width:340px;background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.4);z-index:200;display:none;overflow:hidden}
+  .provider-dropdown.open{display:block;animation:fadeUp .15s ease}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  .provider-group{padding:10px}
+  .provider-group-label{font-size:10px;font-family:var(--font-mono);color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;padding:4px 8px 8px}
+  .provider-option{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;transition:background .12s;border:1px solid transparent}
+  .provider-option:hover{background:var(--bg-hover)}
+  .provider-option.active{background:var(--accent-dim);border-color:var(--accent-glow)}
+  .provider-option-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+  .provider-option-info{flex:1;min-width:0}
+  .provider-option-name{font-size:13px;font-weight:500;color:var(--text-primary)}
+  .provider-option-model{font-size:11px;color:var(--text-muted);font-family:var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .provider-divider{height:1px;background:var(--border);margin:4px 10px}
+
+  /* API KEY per provider */
+  .api-key-section{padding:10px;border-top:1px solid var(--border)}
+  .api-key-label{font-size:11px;color:var(--text-muted);font-family:var(--font-mono);margin-bottom:6px}
+  .api-key-row{display:flex;gap:6px}
+  .api-key-input{flex:1;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:var(--font-mono);font-size:12px;padding:6px 10px;outline:none}
+  .api-key-input:focus{border-color:var(--accent)}
+  .api-key-save{background:var(--accent);border:none;border-radius:6px;color:white;font-size:12px;font-family:var(--font-mono);padding:6px 12px;cursor:pointer;white-space:nowrap}
+  .api-key-save:hover{opacity:.85}
+  .key-status{display:flex;align-items:center;gap:4px;font-size:11px;font-family:var(--font-mono);margin-top:5px}
+  .key-dot{width:6px;height:6px;border-radius:50%}
+  .key-dot.ok{background:var(--success)}
+  .key-dot.no{background:var(--text-muted)}
+
+  .lang-toggle{display:flex;background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+  .lang-btn{padding:5px 10px;border:none;background:none;color:var(--text-muted);font-family:var(--font-mono);font-size:11px;cursor:pointer;transition:all .15s;font-weight:500}
+  .lang-btn.active{background:var(--accent);color:white}
+
+  /* MESSAGES */
+  .messages-container{flex:1;overflow-y:auto;scroll-behavior:smooth;padding:24px 0}
+  .messages-inner{max-width:760px;margin:0 auto;padding:0 20px}
+  .welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;gap:16px;animation:fadeUp .4s ease}
+  .welcome-logo{width:52px;height:52px;background:var(--accent);border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:4px;box-shadow:0 0 32px var(--accent-glow)}
+  .welcome-logo svg{width:28px;height:28px;fill:white}
+  .welcome h1{font-family:var(--font-mono);font-size:22px;font-weight:600;letter-spacing:-.5px}
+  .welcome h1 span{color:var(--accent)}
+  .welcome p{color:var(--text-secondary);font-size:14px;max-width:380px;line-height:1.7}
+  .suggestions{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;max-width:520px;margin-top:8px}
+  .suggestion-card{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;cursor:pointer;text-align:left;transition:all .15s;font-size:13px;color:var(--text-secondary);display:flex;align-items:flex-start;gap:8px;font-family:var(--font-sans)}
+  .suggestion-card:hover{border-color:var(--accent);color:var(--text-primary);background:var(--accent-dim)}
+  .suggestion-card svg{width:14px;height:14px;flex-shrink:0;margin-top:2px;color:var(--accent)}
+
+  /* MESSAGE ROWS */
+  .message-row{display:flex;gap:12px;margin-bottom:20px;animation:fadeUp .2s ease}
+  .message-row.user{flex-direction:row-reverse}
+  .msg-avatar{width:28px;height:28px;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;font-family:var(--font-mono);margin-top:24px}
+  .msg-avatar.bot{background:var(--accent);color:white}
+  .msg-avatar.user-av{background:linear-gradient(135deg,#3fb950,#238636);color:white}
+  .msg-content{flex:1;min-width:0}
+  .msg-meta{display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:11px;color:var(--text-muted);font-family:var(--font-mono)}
+  .message-row.user .msg-meta{justify-content:flex-end}
+  .msg-name{color:var(--text-secondary);font-weight:500}
+  .bubble{padding:12px 15px;border-radius:var(--radius-lg);font-size:14px;line-height:1.75}
+  .bubble.bot{background:var(--bot-bubble);border:1px solid var(--border);border-radius:2px var(--radius-lg) var(--radius-lg) var(--radius-lg)}
+  .bubble.user{background:var(--user-bubble);border:1px solid #2f4f7a;border-radius:var(--radius-lg) 2px var(--radius-lg) var(--radius-lg)}
+  .message-row.user .msg-content{display:flex;flex-direction:column;align-items:flex-end}
+
+  /* Markdown */
+  .bubble strong{color:#79c0ff;font-weight:600}
+  .bubble em{color:#d2a8ff;font-style:italic}
+  .bubble h1,.bubble h2,.bubble h3{color:var(--text-primary);font-family:var(--font-mono);margin:14px 0 8px;font-weight:600}
+  .bubble h1{font-size:17px}.bubble h2{font-size:15px}.bubble h3{font-size:13px}
+  .bubble ul,.bubble ol{padding-left:20px;margin:8px 0}
+  .bubble li{margin-bottom:5px}
+  .bubble p{margin:6px 0}
+  .bubble p:first-child{margin-top:0}.bubble p:last-child{margin-bottom:0}
+  .bubble a{color:var(--accent);text-decoration:underline}
+  .bubble hr{border:none;border-top:1px solid var(--border);margin:12px 0}
+  .bubble blockquote{border-left:3px solid var(--accent);padding-left:12px;margin:10px 0;color:var(--text-secondary);font-style:italic}
+  .bubble pre{background:#010409;border:1px solid var(--border);border-radius:6px;padding:14px;margin:12px 0;overflow-x:auto}
+  .bubble pre code{font-family:var(--font-mono);font-size:12.5px;line-height:1.65;color:#e6edf3;background:none;padding:0}
+  .bubble code{font-family:var(--font-mono);font-size:12.5px;background:#010409;padding:2px 6px;border-radius:4px;color:#79c0ff}
+
+  /* Typing & cursor */
+  .typing-indicator{display:flex;gap:5px;padding:6px 2px;align-items:center}
+  .typing-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:typingBounce 1.2s infinite}
+  .typing-dot:nth-child(2){animation-delay:.15s}.typing-dot:nth-child(3){animation-delay:.3s}
+  @keyframes typingBounce{0%,60%,100%{transform:translateY(0);opacity:.3}30%{transform:translateY(-6px);opacity:1}}
+  .cursor{display:inline-block;width:2px;height:14px;background:var(--accent);margin-left:2px;vertical-align:middle;animation:blink .7s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+  /* INPUT */
+  .input-area{border-top:1px solid var(--border);background:var(--bg-secondary);padding:16px 20px;flex-shrink:0}
+  .input-wrapper{max-width:760px;margin:0 auto}
+  .input-box{background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-lg);display:flex;align-items:flex-end;gap:8px;padding:10px 12px;transition:border-color .15s}
+  .input-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+  .input-box textarea{flex:1;background:none;border:none;outline:none;color:var(--text-primary);font-family:var(--font-sans);font-size:14px;line-height:1.6;resize:none;min-height:22px;max-height:160px;overflow-y:auto;padding:0}
+  .input-box textarea::placeholder{color:var(--text-muted)}
+  .send-btn{width:34px;height:34px;border-radius:8px;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+  .send-btn:hover:not(:disabled){background:#388bfd;transform:scale(1.05)}
+  .send-btn:disabled{background:var(--bg-hover);cursor:not-allowed;transform:none}
+  .send-btn svg{width:16px;height:16px;fill:white}
+  .send-btn:disabled svg{fill:var(--text-muted)}
+  .stop-btn{width:34px;height:34px;border-radius:8px;background:var(--error);border:none;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;display:none}
+  .stop-btn:hover{opacity:.8}
+  .stop-btn svg{width:14px;height:14px;fill:white}
+  .stop-btn.visible{display:flex}
+  .input-footer{display:flex;align-items:center;justify-content:space-between;margin-top:8px;font-size:11px;color:var(--text-muted);font-family:var(--font-mono)}
+  .input-actions{display:flex;gap:8px}
+  .action-btn{background:none;border:1px solid var(--border);border-radius:5px;color:var(--text-muted);font-size:11px;font-family:var(--font-mono);padding:3px 8px;cursor:pointer;display:flex;align-items:center;gap:4px;transition:all .12s}
+  .action-btn:hover{border-color:var(--accent);color:var(--accent)}
+  kbd{background:var(--bg-panel);border:1px solid var(--border);border-radius:3px;padding:1px 4px;font-family:var(--font-mono);font-size:10px;color:var(--text-muted)}
+
+  /* Error */
+  .error-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#2d1414;border:1px solid var(--error);border-radius:8px;padding:10px 16px;color:var(--error);font-size:13px;display:none;align-items:center;gap:8px;z-index:999;animation:fadeUp .2s ease;max-width:90vw;text-align:center}
+  .error-toast.show{display:flex}
+
+  /* Mobile */
+  .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99}
+  ::-webkit-scrollbar{width:5px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+  @media(max-width:768px){
+    .sidebar{position:fixed;top:0;left:0;bottom:0;transform:translateX(-100%)}
+    .sidebar.open{transform:translateX(0)}
+    .overlay.open{display:block}
+    .menu-btn{display:flex!important}
+    .suggestions{grid-template-columns:1fr}
+    .provider-name{display:none}
+    .input-area{padding:12px 14px}
+    .messages-inner{padding:0 14px}
+    .provider-dropdown{width:300px;right:-10px}
+  }
+  @media(max-width:480px){
+    .lang-toggle{display:none}
+    .welcome h1{font-size:18px}
+    .header{padding:0 14px}
+  }
+</style>
+</head>
+<body>
+
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="logo-mark"><svg viewBox="0 0 24 24"><path d="M3 3h8v8H3zm0 10h8v8H3zm10-10h8v8h-8zm0 10h8v8h-8z"/></svg></div>
+    <span class="logo-text">Graph<span>Bot</span></span>
+  </div>
+  <button class="new-chat-btn" onclick="newChat()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    New conversation
+  </button>
+  <div class="sidebar-section-label">Recent</div>
+  <div class="chat-list" id="chatList">
+    <div class="chat-item active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span>New chat</span>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="avatar">GB</div>
+      <div class="user-info">
+        <div class="user-name">Tech Team</div>
+        <div class="user-role">Pro · Workspace</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <header class="header">
+    <button class="menu-btn" onclick="toggleSidebar()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+    <span class="header-title"><strong>GraphBot</strong></span>
+    <div class="header-spacer"></div>
+
+    <div class="lang-toggle">
+      <button class="lang-btn active" id="langFR" onclick="setLang('fr')">FR</button>
+      <button class="lang-btn" id="langEN" onclick="setLang('en')">EN</button>
+    </div>
+
+    <!-- Provider selector -->
+    <div class="provider-selector" id="providerSelector" onclick="toggleDropdown()">
+      <div class="provider-icon" id="headerIcon"></div>
+      <span class="provider-name" id="headerName"></span>
+      <div class="provider-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></div>
+
+      <!-- DROPDOWN -->
+      <div class="provider-dropdown" id="providerDropdown" onclick="event.stopPropagation()">
+        <div class="provider-group">
+          <div class="provider-group-label">Choisir un modèle</div>
+
+          <!-- Anthropic -->
+          <div class="provider-option" id="opt-anthropic" onclick="selectProvider('anthropic')">
+            <div class="provider-option-icon" style="background:#cc785022;color:#cc7850">A</div>
+            <div class="provider-option-info">
+              <div class="provider-option-name">Anthropic · Claude</div>
+              <div class="provider-option-model">claude-sonnet-4-20250514</div>
+            </div>
+            <div class="key-status" id="status-anthropic"><div class="key-dot no"></div></div>
+          </div>
+
+          <!-- OpenAI -->
+          <div class="provider-option" id="opt-openai" onclick="selectProvider('openai')">
+            <div class="provider-option-icon" style="background:#10a37f22;color:#10a37f">O</div>
+            <div class="provider-option-info">
+              <div class="provider-option-name">OpenAI · GPT</div>
+              <div class="provider-option-model">gpt-4o</div>
+            </div>
+            <div class="key-status" id="status-openai"><div class="key-dot no"></div></div>
+          </div>
+
+          <!-- Gemini -->
+          <div class="provider-option" id="opt-gemini" onclick="selectProvider('gemini')">
+            <div class="provider-option-icon" style="background:#4285f422;color:#4285f4">G</div>
+            <div class="provider-option-info">
+              <div class="provider-option-name">Google · Gemini</div>
+              <div class="provider-option-model">gemini-1.5-pro</div>
+            </div>
+            <div class="key-status" id="status-gemini"><div class="key-dot no"></div></div>
+          </div>
+
+          <!-- DeepSeek -->
+          <div class="provider-option" id="opt-deepseek" onclick="selectProvider('deepseek')">
+            <div class="provider-option-icon" style="background:#6366f122;color:#6366f1">D</div>
+            <div class="provider-option-info">
+              <div class="provider-option-name">DeepSeek · Chat</div>
+              <div class="provider-option-model">deepseek-chat</div>
+            </div>
+            <div class="key-status" id="status-deepseek"><div class="key-dot no"></div></div>
+          </div>
+        </div>
+
+        <div class="api-key-section">
+          <div class="api-key-label" id="keyLabel">🔑 Clé API — <span id="keyProviderName"></span></div>
+          <div class="api-key-row">
+            <input type="password" id="apiKeyInput" placeholder="Colle ta clé ici..." class="api-key-input" onkeydown="if(event.key==='Enter')saveApiKey()"/>
+            <button class="api-key-save" onclick="saveApiKey()">Sauver</button>
+          </div>
+          <div class="key-status" id="currentKeyStatus" style="margin-top:6px">
+            <div class="key-dot no" id="currentKeyDot"></div>
+            <span id="currentKeyText" style="color:var(--text-muted);font-size:11px;font-family:var(--font-mono)">Aucune clé</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Messages -->
+  <div class="messages-container" id="messagesContainer">
+    <div class="messages-inner" id="messagesInner">
+      <div class="welcome" id="welcome">
+        <div class="welcome-logo"><svg viewBox="0 0 24 24"><path d="M3 3h8v8H3zm0 10h8v8H3zm10-10h8v8h-8zm0 10h8v8h-8z"/></svg></div>
+        <h1>Graph<span>Bot</span></h1>
+        <p id="welcomeSubtitle">Assistant IA multi-modèles pour équipes tech. Choisissez Claude, GPT-4o, Gemini ou DeepSeek !</p>
+        <div class="suggestions">
+          <button class="suggestion-card" onclick="useSuggestion(this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            <span id="sug1">Explique GraphQL vs REST avec des exemples</span>
+          </button>
+          <button class="suggestion-card" onclick="useSuggestion(this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
+            <span id="sug2">Génère un Dockerfile optimisé pour Node.js</span>
+          </button>
+          <button class="suggestion-card" onclick="useSuggestion(this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="sug3">Comment sécuriser une API avec JWT ?</span>
+          </button>
+          <button class="suggestion-card" onclick="useSuggestion(this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <span id="sug4">Bonnes pratiques CI/CD pour une équipe dev</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div class="input-area">
+    <div class="input-wrapper">
+      <div class="input-box">
+        <textarea id="msgInput" placeholder="Message GraphBot..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>
+          <svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+        </button>
+        <button class="stop-btn" id="stopBtn" onclick="stopGeneration()">
+          <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+        </button>
+      </div>
+      <div class="input-footer">
+        <div class="input-actions">
+          <button class="action-btn" onclick="clearChat()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+            <span id="clearLabel">Effacer</span>
+          </button>
+        </div>
+        <span id="footerHint"><kbd>↵</kbd> envoyer · <kbd>⇧↵</kbd> nouvelle ligne</span>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="error-toast" id="errorToast">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <span id="errorMsg"></span>
+</div>
+
+<script>
+// ── PROVIDERS CONFIG ──
+const PROVIDERS = {
+  anthropic: {
+    label: 'Claude',
+    icon: 'A',
+    iconBg: '#cc785022',
+    iconColor: '#cc7850',
+    model: 'claude-sonnet-4-20250514',
+    placeholder: 'sk-ant-...',
+    storageKey: 'gb_key_anthropic',
+  },
+  openai: {
+    label: 'GPT-4o',
+    icon: 'O',
+    iconBg: '#10a37f22',
+    iconColor: '#10a37f',
+    model: 'gpt-4o',
+    placeholder: 'sk-...',
+    storageKey: 'gb_key_openai',
+  },
+  gemini: {
+    label: 'Gemini',
+    icon: 'G',
+    iconBg: '#4285f422',
+    iconColor: '#4285f4',
+    model: 'gemini-1.5-pro',
+    placeholder: 'AIza...',
+    storageKey: 'gb_key_gemini',
+  },
+  deepseek: {
+    label: 'DeepSeek',
+    icon: 'D',
+    iconBg: '#6366f122',
+    iconColor: '#6366f1',
+    model: 'deepseek-chat',
+    placeholder: 'sk-...',
+    storageKey: 'gb_key_deepseek',
+  }
+};
+
+const SYSTEM_PROMPT = `Tu es GraphBot, un assistant IA chaleureux, intelligent et professionnel pour équipes tech. Tu t'adaptes à la langue de l'utilisateur (français ou anglais).
+Personnalité : amical, naturel, humour léger bienveillant, utile et précis, comme un collègue senior.
+Expertise : GraphQL, REST, gRPC, Docker, Kubernetes, CI/CD, AWS/GCP/Azure, JS/TS, Python, Go, Rust, sécurité, SQL/NoSQL, microservices, code reviews.
+Format : blocs de code avec le bon langage (ex: \`\`\`javascript), titres ## si réponse longue, concis mais complet. Propose toujours d'approfondir.`;
+
+// ── STATE ──
+let currentLang = 'fr';
+let currentProvider = localStorage.getItem('gb_provider') || 'anthropic';
+let conversationHistory = [];
+let isStreaming = false;
+let abortController = null;
+let dropdownOpen = false;
+
+const i18n = {
+  fr: {
+    subtitle: 'Assistant IA multi-modèles pour équipes tech. Choisissez Claude, GPT-4o, Gemini ou DeepSeek !',
+    sug1:'Explique GraphQL vs REST avec des exemples',
+    sug2:'Génère un Dockerfile optimisé pour Node.js',
+    sug3:'Comment sécuriser une API avec JWT ?',
+    sug4:'Bonnes pratiques CI/CD pour une équipe dev',
+    placeholder:'Message GraphBot...',
+    clear:'Effacer', footer:'<kbd>↵</kbd> envoyer · <kbd>⇧↵</kbd> nouvelle ligne',
+    you:'Vous', stopped:'*(Génération arrêtée)*',
+  },
+  en: {
+    subtitle:'Multi-model AI assistant for tech teams. Choose Claude, GPT-4o, Gemini or DeepSeek!',
+    sug1:'Explain GraphQL vs REST with examples',
+    sug2:'Generate an optimized Dockerfile for Node.js',
+    sug3:'How to secure an API with JWT?',
+    sug4:'CI/CD best practices for a dev team',
+    placeholder:'Message GraphBot...',
+    clear:'Clear', footer:'<kbd>↵</kbd> send · <kbd>⇧↵</kbd> new line',
+    you:'You', stopped:'*(Generation stopped)*',
+  }
+};
+
+// ── INIT ──
+function init() {
+  updateProviderUI();
+  updateAllKeyStatuses();
+  updateSendBtn();
+  document.addEventListener('click', e => {
+    if (!document.getElementById('providerSelector').contains(e.target)) closeDropdown();
+  });
+}
+
+// ── PROVIDER UI ──
+function updateProviderUI() {
+  const p = PROVIDERS[currentProvider];
+  const icon = document.getElementById('headerIcon');
+  const name = document.getElementById('headerName');
+  icon.style.background = p.iconBg;
+  icon.style.color = p.iconColor;
+  icon.textContent = p.icon;
+  name.textContent = p.label;
+  // Active option
+  Object.keys(PROVIDERS).forEach(k => {
+    document.getElementById(`opt-${k}`)?.classList.toggle('active', k === currentProvider);
+  });
+  // Key input
+  document.getElementById('keyProviderName').textContent = p.label;
+  document.getElementById('apiKeyInput').placeholder = p.placeholder;
+  document.getElementById('apiKeyInput').value = localStorage.getItem(p.storageKey) ? '••••••••••••••••' : '';
+  updateCurrentKeyStatus();
+  localStorage.setItem('gb_provider', currentProvider);
+}
+
+function updateAllKeyStatuses() {
+  Object.keys(PROVIDERS).forEach(k => {
+    const dot = document.querySelector(`#status-${k} .key-dot`);
+    if (dot) {
+      const hasKey = !!localStorage.getItem(PROVIDERS[k].storageKey);
+      dot.className = 'key-dot ' + (hasKey ? 'ok' : 'no');
+    }
+  });
+}
+
+function updateCurrentKeyStatus() {
+  const hasKey = !!localStorage.getItem(PROVIDERS[currentProvider].storageKey);
+  document.getElementById('currentKeyDot').className = 'key-dot ' + (hasKey ? 'ok' : 'no');
+  document.getElementById('currentKeyText').textContent = hasKey ? 'Clé configurée ✓' : 'Aucune clé — colle la ci-dessus';
+  document.getElementById('currentKeyText').style.color = hasKey ? 'var(--success)' : 'var(--text-muted)';
+}
+
+function selectProvider(id) {
+  currentProvider = id;
+  updateProviderUI();
+  updateSendBtn();
+}
+
+function toggleDropdown() {
+  dropdownOpen = !dropdownOpen;
+  document.getElementById('providerDropdown').classList.toggle('open', dropdownOpen);
+}
+function closeDropdown() {
+  dropdownOpen = false;
+  document.getElementById('providerDropdown').classList.remove('open');
+}
+
+function saveApiKey() {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  if (!val || val === '••••••••••••••••') return;
+  localStorage.setItem(PROVIDERS[currentProvider].storageKey, val);
+  document.getElementById('apiKeyInput').value = '••••••••••••••••';
+  updateCurrentKeyStatus();
+  updateAllKeyStatuses();
+  updateSendBtn();
+  showToast('✅ Clé sauvegardée !', false);
+}
+
+function getApiKey() {
+  return localStorage.getItem(PROVIDERS[currentProvider].storageKey) || '';
+}
+
+// ── LANG ──
+function setLang(lang) {
+  currentLang = lang;
+  const t = i18n[lang];
+  document.getElementById('langFR').classList.toggle('active', lang === 'fr');
+  document.getElementById('langEN').classList.toggle('active', lang === 'en');
+  const sub = document.getElementById('welcomeSubtitle');
+  if (sub) sub.textContent = t.subtitle;
+  ['sug1','sug2','sug3','sug4'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = t[id];
+  });
+  document.getElementById('msgInput').placeholder = t.placeholder;
+  document.getElementById('clearLabel').textContent = t.clear;
+  document.getElementById('footerHint').innerHTML = t.footer;
+}
+
+// ── SIDEBAR ──
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+}
+
+// ── INPUT ──
+const input = document.getElementById('msgInput');
+const sendBtn = document.getElementById('sendBtn');
+const stopBtn = document.getElementById('stopBtn');
+
+function updateSendBtn() {
+  sendBtn.disabled = input.value.trim() === '' || isStreaming || !getApiKey();
+}
+input.addEventListener('input', updateSendBtn);
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+}
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    if (!sendBtn.disabled) sendMessage();
+  }
+}
+function useSuggestion(btn) {
+  input.value = btn.querySelector('span').textContent;
+  autoResize(input);
+  updateSendBtn();
+  if (!sendBtn.disabled) sendMessage();
+}
+
+// ── MARKDOWN ──
+function renderMarkdown(text) {
+  const codeBlocks = [];
+  let html = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    codeBlocks.push(`<pre><code>${escHtml(code.trim())}</code></pre>`);
+    return `§C${codeBlocks.length-1}§`;
+  });
+  const inlines = [];
+  html = html.replace(/`([^`\n]+)`/g, (_, c) => { inlines.push(`<code>${escHtml(c)}</code>`); return `§I${inlines.length-1}§`; });
+  html = html
+    .replace(/^### (.+)$/gm,'<h3>$1</h3>')
+    .replace(/^## (.+)$/gm,'<h2>$1</h2>')
+    .replace(/^# (.+)$/gm,'<h1>$1</h1>')
+    .replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/^> (.+)$/gm,'<blockquote>$1</blockquote>')
+    .replace(/^---$/gm,'<hr>')
+    .replace(/\[(.+?)\]\((.+?)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+  html = html.replace(/^(\s*)[-*] (.+)$/gm,(_, sp, item) => `<li style="margin-left:${sp.length*8}px">${item}</li>`);
+  html = html.replace(/(<li[^>]*>[\s\S]*?<\/li>\n?)+/g, m => `<ul>${m}</ul>`);
+  html = html.replace(/^\d+\. (.+)$/gm,'<li>$1</li>');
+  html = html.split(/\n\n+/).map(p => {
+    p = p.trim();
+    if (!p) return '';
+    if (/^<(h[123]|ul|ol|li|blockquote|hr|pre)/.test(p)) return p;
+    return '<p>' + p.replace(/\n/g,'<br>') + '</p>';
+  }).join('');
+  html = html.replace(/\n/g,'<br>');
+  codeBlocks.forEach((b,i) => { html = html.replace(`§C${i}§`, b); });
+  inlines.forEach((b,i) => { html = html.replace(`§I${i}§`, b); });
+  return html;
+}
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── MESSAGES UI ──
+function hideWelcome() { const w = document.getElementById('welcome'); if (w) w.remove(); }
+function scrollDown() { const c = document.getElementById('messagesContainer'); requestAnimationFrame(() => c.scrollTop = c.scrollHeight); }
+
+function showToast(msg, isError=true) {
+  const t = document.getElementById('errorToast');
+  document.getElementById('errorMsg').textContent = msg;
+  t.style.color = isError ? 'var(--error)' : 'var(--success)';
+  t.style.borderColor = isError ? 'var(--error)' : 'var(--success)';
+  t.style.background = isError ? '#2d1414' : '#142d1a';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+function now() { return new Date().toLocaleTimeString(currentLang==='fr'?'fr-FR':'en-US',{hour:'2-digit',minute:'2-digit'}); }
+
+function addUserMessage(text) {
+  const container = document.getElementById('messagesInner');
+  const row = document.createElement('div');
+  row.className = 'message-row user';
+  row.innerHTML = `
+    <div class="msg-avatar user-av">ME</div>
+    <div class="msg-content">
+      <div class="msg-meta"><span class="msg-name">${i18n[currentLang].you}</span><span>${now()}</span></div>
+      <div class="bubble user">${escHtml(text).replace(/\n/g,'<br>')}</div>
+    </div>`;
+  container.appendChild(row);
+  scrollDown();
+}
+
+function createBotRow() {
+  const p = PROVIDERS[currentProvider];
+  const container = document.getElementById('messagesInner');
+  const row = document.createElement('div');
+  row.className = 'message-row bot';
+  row.innerHTML = `
+    <div class="msg-avatar bot" style="background:${p.iconColor}">${p.icon}</div>
+    <div class="msg-content">
+      <div class="msg-meta">
+        <span class="msg-name">${p.label}</span>
+        <span style="color:${p.iconColor};font-size:10px">● ${p.model}</span>
+        <span>${now()}</span>
+      </div>
+      <div class="bubble bot" id="currentBubble">
+        <div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>
+      </div>
+    </div>`;
+  container.appendChild(row);
+  scrollDown();
+  return document.getElementById('currentBubble');
+}
+
+function setStreamingUI(s) {
+  isStreaming = s;
+  sendBtn.style.display = s ? 'none' : 'flex';
+  stopBtn.classList.toggle('visible', s);
+  updateSendBtn();
+}
+
+function stopGeneration() { if (abortController) { abortController.abort(); abortController = null; } }
+
+// ── SEND (multi-provider) ──
+async function sendMessage() {
+  const text = input.value.trim();
+  const key = getApiKey();
+  if (!text || isStreaming || !key) {
+    if (!key) { toggleDropdown(); return; }
+    return;
+  }
+
+  closeDropdown();
+  hideWelcome();
+  input.value = '';
+  input.style.height = 'auto';
+  setStreamingUI(true);
+  conversationHistory.push({ role: 'user', content: text });
+  addUserMessage(text);
+  updateChatList(text);
+
+  const bubble = createBotRow();
+  let fullText = '';
+  abortController = new AbortController();
+
+  try {
+    switch (currentProvider) {
+      case 'anthropic': await streamAnthropic(key, bubble, (t) => { fullText += t; updateBubble(bubble, fullText); }); break;
+      case 'openai':    await streamOpenAI(key, bubble, (t) => { fullText += t; updateBubble(bubble, fullText); }); break;
+      case 'gemini':    await streamGemini(key, bubble, (t) => { fullText += t; updateBubble(bubble, fullText); }); break;
+      case 'deepseek':  await streamDeepSeek(key, bubble, (t) => { fullText += t; updateBubble(bubble, fullText); }); break;
+    }
+    bubble.innerHTML = renderMarkdown(fullText);
+    bubble.removeAttribute('id');
+    conversationHistory.push({ role: 'assistant', content: fullText });
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      bubble.innerHTML = renderMarkdown(fullText || i18n[currentLang].stopped);
+      bubble.removeAttribute('id');
+      if (fullText) conversationHistory.push({ role: 'assistant', content: fullText });
+      else conversationHistory.pop();
+    } else {
+      console.error(err);
+      bubble.innerHTML = `<span style="color:var(--error)">⚠️ ${err.message}</span>`;
+      bubble.removeAttribute('id');
+      conversationHistory.pop();
+      showToast('⚠️ ' + err.message, true);
+    }
+  } finally {
+    abortController = null;
+    setStreamingUI(false);
+    input.focus();
+  }
+}
+
+function updateBubble(bubble, text) {
+  bubble.innerHTML = renderMarkdown(text) + '<span class="cursor"></span>';
+  scrollDown();
+}
+
+// ── ANTHROPIC ──
+async function streamAnthropic(key, bubble, onChunk) {
+  bubble.innerHTML = '<span class="cursor"></span>';
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true' },
+    signal: abortController.signal,
+    body: JSON.stringify({ model: PROVIDERS.anthropic.model, max_tokens: 2048, system: SYSTEM_PROMPT, stream: true, messages: conversationHistory })
+  });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e?.error?.message || `Anthropic HTTP ${res.status}`); }
+  const reader = res.body.getReader(); const dec = new TextDecoder();
+  while (true) {
+    const { done, value } = await reader.read(); if (done) break;
+    for (const line of dec.decode(value,{stream:true}).split('\n')) {
+      if (!line.startsWith('data: ')) continue;
+      try { const d = JSON.parse(line.slice(6)); if (d.type==='content_block_delta'&&d.delta?.text) onChunk(d.delta.text); } catch {}
+    }
+  }
+}
+
+// ── OPENAI ──
+async function streamOpenAI(key, bubble, onChunk) {
+  bubble.innerHTML = '<span class="cursor"></span>';
+  const msgs = [{ role:'system', content: SYSTEM_PROMPT }, ...conversationHistory];
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json','Authorization':`Bearer ${key}` },
+    signal: abortController.signal,
+    body: JSON.stringify({ model: PROVIDERS.openai.model, stream: true, messages: msgs, max_tokens: 2048 })
+  });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e?.error?.message || `OpenAI HTTP ${res.status}`); }
+  const reader = res.body.getReader(); const dec = new TextDecoder();
+  while (true) {
+    const { done, value } = await reader.read(); if (done) break;
+    for (const line of dec.decode(value,{stream:true}).split('\n')) {
+      if (!line.startsWith('data: ') || line.includes('[DONE]')) continue;
+      try { const d = JSON.parse(line.slice(6)); const t = d.choices?.[0]?.delta?.content; if (t) onChunk(t); } catch {}
+    }
+  }
+}
+
+// ── GEMINI ──
+async function streamGemini(key, bubble, onChunk) {
+  bubble.innerHTML = '<span class="cursor"></span>';
+  const contents = conversationHistory.map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }]
+  }));
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${PROVIDERS.gemini.model}:streamGenerateContent?alt=sse&key=${key}`, {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    signal: abortController.signal,
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents,
+      generationConfig: { maxOutputTokens: 2048 }
+    })
+  });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e?.error?.message || `Gemini HTTP ${res.status}`); }
+  const reader = res.body.getReader(); const dec = new TextDecoder();
+  while (true) {
+    const { done, value } = await reader.read(); if (done) break;
+    for (const line of dec.decode(value,{stream:true}).split('\n')) {
+      if (!line.startsWith('data: ')) continue;
+      try { const d = JSON.parse(line.slice(6)); const t = d.candidates?.[0]?.content?.parts?.[0]?.text; if (t) onChunk(t); } catch {}
+    }
+  }
+}
+
+// ── DEEPSEEK ──
+async function streamDeepSeek(key, bubble, onChunk) {
+  bubble.innerHTML = '<span class="cursor"></span>';
+  const msgs = [{ role:'system', content: SYSTEM_PROMPT }, ...conversationHistory];
+  const res = await fetch('https://api.deepseek.com/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json','Authorization':`Bearer ${key}` },
+    signal: abortController.signal,
+    body: JSON.stringify({ model: PROVIDERS.deepseek.model, stream: true, messages: msgs, max_tokens: 2048 })
+  });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e?.error?.message || `DeepSeek HTTP ${res.status}`); }
+  const reader = res.body.getReader(); const dec = new TextDecoder();
+  while (true) {
+    const { done, value } = await reader.read(); if (done) break;
+    for (const line of dec.decode(value,{stream:true}).split('\n')) {
+      if (!line.startsWith('data: ') || line.includes('[DONE]')) continue;
+      try { const d = JSON.parse(line.slice(6)); const t = d.choices?.[0]?.delta?.content; if (t) onChunk(t); } catch {}
+    }
+  }
+}
+
+// ── CHAT MANAGEMENT ──
+function updateChatList(msg) {
+  const active = document.querySelector('#chatList .chat-item.active span');
+  if (active && active.textContent === 'New chat')
+    active.textContent = msg.slice(0, 34) + (msg.length > 34 ? '…' : '');
+}
+
+function newChat() {
+  if (isStreaming) stopGeneration();
+  conversationHistory = [];
+  document.getElementById('messagesInner').innerHTML = buildWelcomeHTML();
+  const list = document.getElementById('chatList');
+  list.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
+  const item = document.createElement('div');
+  item.className = 'chat-item active';
+  item.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>New chat</span>`;
+  list.prepend(item);
+  setStreamingUI(false);
+  input.value = '';
+  updateSendBtn();
+  input.focus();
+  closeSidebar();
+}
+
+function clearChat() {
+  if (isStreaming) stopGeneration();
+  conversationHistory = [];
+  document.getElementById('messagesInner').querySelectorAll('.message-row').forEach(el => el.remove());
+}
+
+function buildWelcomeHTML() {
+  const t = i18n[currentLang];
+  return `<div class="welcome" id="welcome">
+    <div class="welcome-logo"><svg viewBox="0 0 24 24"><path d="M3 3h8v8H3zm0 10h8v8H3zm10-10h8v8h-8zm0 10h8v8h-8z"/></svg></div>
+    <h1>Graph<span style="color:var(--accent)">Bot</span></h1>
+    <p id="welcomeSubtitle">${t.subtitle}</p>
+    <div class="suggestions">
+      <button class="suggestion-card" onclick="useSuggestion(this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        <span id="sug1">${t.sug1}</span>
+      </button>
+      <button class="suggestion-card" onclick="useSuggestion(this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
+        <span id="sug2">${t.sug2}</span>
+      </button>
+      <button class="suggestion-card" onclick="useSuggestion(this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="sug3">${t.sug3}</span>
+      </button>
+      <button class="suggestion-card" onclick="useSuggestion(this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span id="sug4">${t.sug4}</span>
+      </button>
+    </div>
+  </div>`;
+}
+
+init();
+</script>
+</body>
+</html>
